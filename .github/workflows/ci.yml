@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  attribution:
+    name: Commit and PR body rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check commit messages and PR body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BANNED_WORDS: ${{ secrets.BANNED_WORDS }}
+        run: |
+          set -u
+          fail=0
+          check() {
+            label="$1"; text="$2"
+            if printf '%s\n' "$text" | grep -Eiq '^(co-authored-by|signed-off-by|generated-by):'; then
+              echo "$label: attribution trailer found. Fix: remove it"; fail=1; fi
+            if printf '%s\n' "$text" | grep -Eiq 'generated (with|by)'; then
+              echo "$label: 'generated with/by' found. Fix: remove it"; fail=1; fi
+            if printf '%s\n' "$text" | LC_ALL=C grep -q '[^ -~[:space:]]'; then
+              echo "$label: non-ASCII character found. Fix: use plain ASCII"; fail=1; fi
+            if [ -n "${BANNED_WORDS:-}" ] && printf '%s\n' "$text" | grep -Eiq "$BANNED_WORDS"; then
+              echo "$label: banned word found. Fix: remove the name"; fail=1; fi
+          }
+          for sha in $(git rev-list origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }}); do
+            check "commit $sha" "$(git log -1 --format=%B "$sha")"
+            subject=$(git log -1 --format=%s "$sha")
+            if [ "${#subject}" -gt 72 ]; then echo "commit $sha: subject over 72 chars. Fix: shorten it"; fail=1; fi
+            if ! printf '%s' "$subject" | grep -q '^[A-Z]'; then echo "commit $sha: subject not capitalized. Fix: capitalize it"; fail=1; fi
+          done
+          check "PR body" "$PR_BODY"
+          if [ -n "${BANNED_WORDS:-}" ]; then
+            hits=$(grep -rEil --exclude-dir=.git "$BANNED_WORDS" . || true)
+            [ -z "$hits" ] || { echo "banned words in: $hits. Fix: remove the name"; fail=1; }
+          fi
+          exit $fail
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m unittest discover -v tests
+      - name: Hook scripts parse and capture writes a log line
+        run: |
+          bash -n hooks/capture.sh hooks/block.sh scripts/setup.sh
+          export RULERATCHET_HOME="$RUNNER_TEMP/rr"
+          printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"Done.\n[LEARN] tests run from the repo root.\n"}' | bash hooks/capture.sh
+          grep -q 'LEARN	tests run from the repo root' "$RULERATCHET_HOME"/*.log
+          bash hooks/block.sh "guard: refused a write"
+          grep -q 'BLOCK	guard: refused a write' "$RULERATCHET_HOME"/*.log

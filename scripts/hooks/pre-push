@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# pre-push hook: refuses direct pushes to main; every change goes through a PR.
+set -u
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    printf 'pre-push: direct push to main refused\nFix: push a branch and open a PR\n' >&2
+    exit 1
+  fi
+done
+exit 0
