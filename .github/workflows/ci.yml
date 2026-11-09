@@ -59,3 +59,10 @@ jobs:
           grep -q 'LEARN	tests run from the repo root' "$RULERATCHET_HOME"/*.log
           bash hooks/block.sh "guard: refused a write"
           grep -q 'BLOCK	guard: refused a write' "$RULERATCHET_HOME"/*.log
+      - name: Capture falls back to either host's transcript shape
+        run: |
+          export RULERATCHET_HOME="$RUNNER_TEMP/rr2"
+          printf '%s' "{\"hook_event_name\":\"Stop\",\"transcript_path\":\"$PWD/tests/fixtures/transcript.jsonl\"}" | bash hooks/capture.sh
+          printf '%s' "{\"hook_event_name\":\"Stop\",\"transcript_path\":\"$PWD/tests/fixtures/rollout.jsonl\"}" | bash hooks/capture.sh
+          grep -q 'FRICTION	the first host writes transcript lines' "$RULERATCHET_HOME"/*.log
+          grep -q 'LEARN	the second host writes rollout lines' "$RULERATCHET_HOME"/*.log
