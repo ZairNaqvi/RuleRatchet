@@ -23,11 +23,28 @@ class Test(unittest.TestCase):
     def tearDown(self):
         self.dir.cleanup()
 
-    def report(self):
+    def report(self, *flags):
         out = io.StringIO()
         with redirect_stdout(out):
-            rr.cmd_report(self.log)
+            self.status = rr.cmd_report(self.log, flags)
         return out.getvalue()
+
+    def test_since_hides_older_candidates_and_keeps_their_numbers(self):
+        out = self.report("--since", "2026-11-04")
+        self.assertNotIn("1. **", out)
+        self.assertIn("2. **verify", out)
+        self.assertIn("3. **if a branch", out)
+
+    def test_min_days_and_out(self):
+        self.assertIn("No candidate matches the filters.", self.report("--min-days", "3"))
+        target = pathlib.Path(self.dir.name) / "weekly.md"
+        self.assertIn("3 candidate(s)", self.report("--out", str(target)))
+        self.assertIn("1. **src/test.sh", target.read_text())
+
+    def test_bad_report_flags_are_refused(self):
+        for flags in (("--since", "last week"), ("--min-days", "few"), ("--nope", "1"), ("--out",)):
+            self.report(*flags)
+            self.assertEqual(self.status, 2)
 
     def test_rewordings_cluster_and_singletons_do_not(self):
         cands = rr.candidates(rr.read_log(self.log))

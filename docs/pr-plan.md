@@ -35,7 +35,7 @@ nothing. Done when the README's manual JSON snippet is replaced by one command.
 
 ## PR 3: report flags
 
-`--since YYYY-MM-DD` ignores older entries, `--min-days N` raises the
+`--since YYYY-MM-DD` hides candidates not seen since, `--min-days N` raises the
 threshold, `--out <file>` writes the markdown instead of printing. Verify: unit
 tests on the fixture log. Done when a weekly run can be one cron line.
 
