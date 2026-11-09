@@ -2,14 +2,20 @@
 """ruleratchet: turn repeated agent friction into rules, and check that they held.
 
 Usage:
+  ruleratchet install <host> [<repo>]      register the stop hook (host: claude | codex)
+  ruleratchet uninstall <host> [<repo>]    remove it
+  ruleratchet path                         print this repository's log path
   ruleratchet report <log>                 what has recurred, with a drafted rule or check each
   ruleratchet mark <log> <n> [<n> ...]     record candidate n as promoted today
   ruleratchet log <log> <kind> <text>      append one dated entry (once per day per entry)
+  ruleratchet capture                      stop hook: reads the event JSON on stdin
+  ruleratchet block <text>                 for a guard hook: record that it refused something
   ruleratchet norm <text>                  print the normalized key for <text>
 
 The log is a text file, one entry per line: date<TAB>kind<TAB>text. Any
-producer can write it; the hooks in hooks/ write it from both supported agent
-CLIs. Promotions are recorded beside the log in <log>.promoted.
+producer can write it; `capture` and `block` write it from both supported agent
+CLIs, to ~/.ruleratchet/<key>.log keyed by the repository path (RULERATCHET_HOME
+moves it). Promotions are recorded beside the log in <log>.promoted.
 
 A candidate is an entry whose normalized text, or a near-duplicate, was seen on
 two or more distinct days or three or more times. An entry naming a path, flag,
@@ -18,7 +24,7 @@ prescriptive rule. A promoted entry that recurs after its promotion date is
 reported as such: the rule did not stop it, so a check should replace it.
 Nothing here calls a model and nothing leaves the machine.
 """
-import collections, datetime, pathlib, re, sys
+import collections, datetime, hashlib, json, os, pathlib, re, shlex, shutil, subprocess, sys
 
 STOP = set("a an and are as at be by for from in into is it its of on or that the this to use when with you your not do does if then always never first before after must should".split())
 COMMANDS = {"bash", "git", "gh", "npm", "npx", "node", "python3", "python", "make", "cargo", "go", "pnpm", "yarn", "deno", "docker", "curl"}
@@ -161,6 +167,119 @@ def cmd_log(log, kind, text):
     return 0
 
 
+HOSTS = {"claude": ".claude/settings.local.json", "codex": ".codex/hooks.json"}
+
+
+def default_log():
+    """This repository's log, or None outside a repository."""
+    try:
+        root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    home = os.environ.get("RULERATCHET_HOME") or pathlib.Path.home() / ".ruleratchet"
+    return pathlib.Path(home) / (hashlib.sha256(root.encode()).hexdigest()[:16] + ".log")
+
+
+def last_message(event):
+    """The agent's last reply: from the stop event, else from the tail of the transcript."""
+    if event.get("last_assistant_message"):
+        return event["last_assistant_message"]
+    try:
+        with open(event.get("transcript_path") or "", "rb") as f:   # tail only; a long session is tens of MB
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 200_000))
+            tail = f.read().decode("utf-8", "replace")
+    except OSError:
+        return ""
+    for line in reversed(tail.splitlines()):
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(e, dict):
+            continue
+        if e.get("type") == "assistant":      # first host: message.content[] text blocks
+            content = (e.get("message") or {}).get("content") or []
+            text = "\n".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+            if text:
+                return text
+        if e.get("type") == "event_msg":      # second host: rollout payload with the reply text
+            payload = e.get("payload") or {}
+            if payload.get("type") == "agent_message" and (payload.get("message") or payload.get("text")):
+                return payload.get("message") or payload.get("text")
+    return ""
+
+
+def cmd_capture():
+    log = default_log()
+    try:
+        event = json.load(sys.stdin)
+    except ValueError:
+        return 0          # a hook never fails the session over a bad payload
+    if log is None or not isinstance(event, dict):
+        return 0
+    for line in last_message(event).splitlines():
+        m = re.match(r"\s*\[(LEARN|FRICTION)\]\s*(.+)", line)
+        if m:
+            cmd_log(log, m.group(1), m.group(2))
+    return 0
+
+
+def hook_command():
+    exe = shutil.which("ruleratchet")   # the host runs this through a shell, so quote paths with spaces
+    return shlex.join([exe, "capture"] if exe else [sys.executable, str(pathlib.Path(__file__).resolve()), "capture"])
+
+
+def is_ours(group):
+    return any("ruleratchet" in h.get("command", "") and h.get("command", "").endswith(" capture") for h in group.get("hooks", []))
+
+
+def cmd_install(host, repo, remove=False):
+    if host not in HOSTS:
+        print(f"ruleratchet: unknown host '{host}' (known: {', '.join(HOSTS)})", file=sys.stderr)
+        return 2
+    repo = pathlib.Path(repo).expanduser().resolve()
+    if not repo.is_dir():
+        print(f"ruleratchet: {repo} is not a directory", file=sys.stderr)
+        return 2
+    path = repo / HOSTS[host]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8")) if path.exists() and path.read_text().strip() else {}
+    except ValueError as err:   # never overwrite a settings file we cannot parse
+        print(f"ruleratchet: {path} is not valid JSON ({err}); fix it by hand, nothing was written", file=sys.stderr)
+        return 1
+    if not isinstance(data, dict):
+        print(f"ruleratchet: {path} does not hold a JSON object; nothing was written", file=sys.stderr)
+        return 1
+    stop = data.setdefault("hooks", {}).setdefault("Stop", [])
+    had = any(is_ours(g) for g in stop)
+    if remove:
+        data["hooks"]["Stop"] = [g for g in stop if not is_ours(g)]
+        if not data["hooks"]["Stop"]:
+            del data["hooks"]["Stop"]
+        if not data["hooks"]:
+            del data["hooks"]
+        verb = "removed the stop hook from" if had else "no stop hook to remove in"
+    elif had:
+        print(f"ruleratchet: stop hook already registered in {path}")
+        return 0
+    else:
+        stop.append({"hooks": [{"type": "command", "command": hook_command(), "timeout": 30}]})
+        verb = "registered the stop hook in"
+    if remove and not had:
+        print(f"ruleratchet: {verb} {path}")
+        return 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    exclude = repo / ".git" / "info" / "exclude"
+    if not remove and exclude.parent.is_dir():   # the hook command is a machine path; keep the file out of commits
+        lines = exclude.read_text().splitlines() if exclude.exists() else []
+        if HOSTS[host] not in lines:
+            exclude.write_text("\n".join(lines + [HOSTS[host]]) + "\n")
+    print(f"ruleratchet: {verb} {path}")
+    return 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if not argv or argv[0] in ("-h", "--help"):
@@ -170,6 +289,17 @@ def main(argv=None):
     if cmd == "norm" and rest:
         print(norm(" ".join(rest)))
         return 0
+    if cmd in ("install", "uninstall") and rest:
+        return cmd_install(rest[0], rest[1] if len(rest) > 1 else ".", remove=cmd == "uninstall")
+    if cmd == "capture":
+        return cmd_capture()
+    if cmd == "path":
+        log = default_log()
+        print(log if log else "ruleratchet: not inside a repository", file=sys.stdout if log else sys.stderr)
+        return 0 if log else 1
+    if cmd == "block" and rest:
+        log = default_log()
+        return cmd_log(log, "BLOCK", " ".join(rest)) if log else 0
     if cmd in ("report", "mark", "log") and rest:
         log = pathlib.Path(rest[0]).expanduser()
         if cmd == "report":
