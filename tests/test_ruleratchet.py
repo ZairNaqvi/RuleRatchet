@@ -43,6 +43,34 @@ class Test(unittest.TestCase):
         self.assertIn("judgement: rule", out)
         self.assertIn("conditional phrasing", out)
 
+    def draft(self, n):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.status = rr.cmd_draft(self.log, n)
+        return out.getvalue()
+
+    def test_draft_for_a_mechanical_entry_is_a_shell_check(self):
+        out = self.draft(1)
+        self.assertIn("if grep -rnE -- 'src/test.sh' <path>; then", out)
+        self.assertIn("Fix: <what to do instead>", out)
+        self.assertIn("seen 2 time(s) on 2 day(s)", out)
+
+    def test_draft_for_a_judgement_entry_is_one_rule_line(self):
+        out = self.draft(3)
+        self.assertTrue(out.startswith("- If a branch is to be deleted, ask first. Applies to: `<command or path>`."))
+        self.assertIn("conditional phrasing", out)
+
+    def test_draft_keeps_paths_as_typed_and_escapes_the_echo(self):
+        self.assertIn("# src/test.sh must be run from the repo root (", self.draft(1))
+        self.assertEqual(rr.sentence("always ask first."), "Always ask first")
+        self.assertEqual(rr.sentence("git push needs a branch"), "git push needs a branch")
+        block = rr.paste_block('bash x.sh prints "$HOME" and `id`', [("2026-11-01", "LEARN", "")], ["2026-11-01"])
+        self.assertIn('echo "bash x.sh prints \\"\\$HOME\\" and \\`id\\`. Fix:', block)
+
+    def test_draft_refuses_a_number_the_report_does_not_list(self):
+        self.assertEqual(self.draft(9), "")
+        self.assertEqual(self.status, 1)
+
     def test_recurrence_after_promotion(self):
         key = rr.norm("src/test.sh must run from the repo root")
         self.log.with_suffix(".promoted").write_text(f"2026-11-02\t{key}\n")
