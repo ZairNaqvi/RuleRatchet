@@ -1,0 +1,2 @@
+{"type":"user","message":{"role":"user","content":"fix the test"},"cwd":"/tmp/x","timestamp":"2026-11-09T10:00:01Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done.\n[FRICTION] the first host writes transcript lines.\n"}]},"cwd":"/tmp/x","timestamp":"2026-11-09T10:00:05Z"}

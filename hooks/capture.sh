@@ -21,10 +21,15 @@ if not m and d.get("transcript_path"):
         for line in reversed(tail.splitlines()):
             try: e = json.loads(line)
             except Exception: continue
-            if e.get("type") == "assistant":
+            if e.get("type") == "assistant":                       # first host: message.content[] text blocks
                 c = e.get("message", {}).get("content", [])
                 m = "\n".join(x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text")
                 if m: break
+            if e.get("type") == "event_msg":                        # second host: rollout payload with the reply text
+                pl = e.get("payload") or {}
+                if pl.get("type") == "agent_message":
+                    m = pl.get("message") or pl.get("text") or ""
+                    if m: break
     except OSError: pass
 print(m or "")' 2>/dev/null)
 [ -n "$msg" ] || exit 0
