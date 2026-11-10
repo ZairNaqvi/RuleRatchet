@@ -17,6 +17,9 @@ producer can write it; `capture` and `block` write it from both supported agent
 CLIs, to ~/.ruleratchet/<key>.log keyed by the repository path (RULERATCHET_HOME
 moves it). Promotions are recorded beside the log in <log>.promoted.
 
+`ruleratchet draft <log> <n>` prints a block for candidate n, ready to paste
+into a lint script or the agent instructions file. It writes nothing.
+
 A candidate is an entry whose normalized text, or a near-duplicate, was seen on
 two or more distinct days or three or more times. An entry naming a path, flag,
 command, or exit code is mechanical and drafts a check; anything else drafts a
@@ -64,9 +67,15 @@ def classify(text):
     return "mechanical" if mechanical else "judgement"
 
 
+def sentence(text):
+    """Capitalize the first word unless it is a path, flag, or command, which must stay as typed."""
+    body = text.strip().rstrip(".")
+    first = body.split()[0] if body else ""
+    return body[0].upper() + body[1:] if first.isalpha() and first.lower() not in COMMANDS else body
+
+
 def draft(kind, text):
-    body = text.strip()
-    body = body[0].upper() + body[1:] if body else body
+    body = sentence(text)
     if kind == "mechanical":
         words = text.split()
         token = (next((w for w in words if "/" in w), None) or next((w for w in words if w.startswith("--")), None)
@@ -76,6 +85,43 @@ def draft(kind, text):
     conditional = " (reword as a plain instruction; conditional phrasing is followed less)" if re.match(r"(if|when|whenever|unless)\b", body, re.I) else ""
     needs = " (name the command or path it applies to before adopting; rules without one are followed less)"
     return f"rule (prescriptive, in the agent instructions file): {body}{conditional}{needs}"
+
+
+def shell_dq(text):
+    """Escape text for the inside of a double-quoted shell string."""
+    return re.sub(r'([\\"$`])', r"\\\1", text)
+
+
+def paste_block(text, members, days):
+    """A block to paste into a lint script (mechanical) or the instructions file (judgement).
+    Angle-bracket placeholders are for the human; only they know what a violation looks like."""
+    body = sentence(text)
+    seen = f"seen {len(members)} time(s) on {len(days)} day(s): {', '.join(days)}"
+    if classify(text) == "mechanical":
+        words = text.split()
+        token = (next((w for w in words if "/" in w), None) or next((w for w in words if w.startswith("--")), None)
+                 or next((w for w in words if w.lower() in COMMANDS), "<pattern>"))
+        quoted = "'" + token.strip(".,;:").replace("'", "'\\''") + "'"
+        return "\n".join([
+            f"# {body} ({seen})",
+            "# Narrow the pattern to what a violation looks like, and the path to where it can occur.",
+            f"if grep -rnE -- {quoted} <path>; then",
+            f'  echo "{shell_dq(body)}. Fix: <what to do instead>"',
+            "  exit 1",
+            "fi",
+        ])
+    note = "  <!-- reword as a plain instruction; conditional phrasing is followed less -->" if re.match(r"(if|when|whenever|unless)\b", body, re.I) else ""
+    return f"- {body}. Applies to: `<command or path>`.{note}\n  <!-- {seen} -->"
+
+
+def cmd_draft(log, n):
+    cands = candidates(read_log(log))
+    if not 1 <= n <= len(cands):
+        print(f"ruleratchet: no candidate {n} (the report lists {len(cands)})", file=sys.stderr)
+        return 1
+    _, members, days = cands[n - 1]
+    print(paste_block(members[-1][2], members, days))
+    return 0
 
 
 def read_log(log):
@@ -336,6 +382,8 @@ def main(argv=None):
             return cmd_mark(log, [int(a) for a in rest[1:] if a.isdigit()])
         if cmd == "log" and len(rest) >= 3:
             return cmd_log(log, rest[1], " ".join(rest[2:]))
+    if cmd == "draft" and len(rest) == 2 and rest[1].isdigit():
+        return cmd_draft(pathlib.Path(rest[0]).expanduser(), int(rest[1]))
     print(__doc__, file=sys.stderr)
     return 2
 

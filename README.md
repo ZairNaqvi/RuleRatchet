@@ -17,8 +17,10 @@ to be learned again, and the tool tells you when it was.
    An entry naming a path, flag, command, or exit code drafts a check; anything
    else drafts a prescriptive rule, flagged when it is conditional or names no
    command or path, since such rules are followed less.
-3. **Promote.** You adopt a candidate by hand, in your agent instructions file
-   or as a lint rule, and record it: `ruleratchet mark <log> <n>`.
+3. **Promote.** `ruleratchet draft <log> <n>` prints a block to paste: a shell
+   check for a mechanical entry, one rule line for a judgement entry, with
+   placeholders for what only you know. You adopt it by hand, in your agent
+   instructions file or as a lint rule, and record it: `ruleratchet mark <log> <n>`.
 4. **Measure.** A promoted entry that recurs after its promotion date is
    reported as such. That is the finding: the rule did not stop it, so a check
    should replace it.
