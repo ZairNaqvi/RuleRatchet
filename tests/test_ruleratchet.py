@@ -175,10 +175,22 @@ class TestHooks(unittest.TestCase):
         self.assertIn("FRICTION\tslow first run.", self.log_text())
         self.assertEqual(len(self.log_text().splitlines()), 2)
 
-    def test_capture_falls_back_to_either_transcript_shape(self):
-        self.capture({"transcript_path": str(FIXTURES / "transcript.jsonl")})
-        self.capture({"transcript_path": str(FIXTURES / "rollout.jsonl")})
-        self.assertIn("FRICTION\tthe first host writes transcript lines.", self.log_text())
+    def test_capture_from_a_recorded_stop_event(self):
+        event = json.loads((FIXTURES / "claude-stop-event.json").read_text())
+        self.capture(event)
+        self.assertEqual(self.log_text().split("\t", 1)[1], "LEARN\tthe recorded fixture line\n")
+
+    def test_capture_from_a_recorded_transcript(self):
+        # The recording has a thinking-only assistant record before the reply and
+        # five other record types after it; the fallback must find the reply anyway.
+        event = json.loads((FIXTURES / "claude-stop-event.json").read_text())
+        del event["last_assistant_message"]
+        event["transcript_path"] = str(FIXTURES / "claude-transcript.jsonl")
+        self.capture(event)
+        self.assertEqual(self.log_text().split("\t", 1)[1], "LEARN\tthe recorded fixture line\n")
+
+    def test_capture_from_the_second_hosts_documented_shape(self):
+        self.capture({"transcript_path": str(FIXTURES / "codex-rollout.synthetic.jsonl")})
         self.assertIn("LEARN\tthe second host writes rollout lines.", self.log_text())
 
     def test_capture_survives_a_bad_payload(self):

@@ -12,7 +12,7 @@ baseline; the plan takes it to a v1.0 someone else could install and trust.
 | 3 | `feat-report-flags` | `--since`, `--min-days`, `--out` on report | 1 |
 | 4 | `feat-draft` | `ruleratchet draft <n>` prints a paste-ready block | 1 |
 | 5 | `feat-health` | `ruleratchet health <log>`: did the rules hold | 2 |
-| 6 | `test-fixtures` | Recorded, redacted stop events from both hosts as fixtures | 1 |
+| 6 | `test-fixtures` | Recorded, redacted stop event and transcript from the first host; the second stays synthetic until it can be recorded | 1 |
 | 7 | `chore-release` | Version, changelog, tagged release, install from tag | 1 |
 | 8 | `docs-public` | Stranger read-through, public flip, branch protection | 1 |
 
