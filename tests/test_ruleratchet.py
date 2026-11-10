@@ -88,6 +88,29 @@ class Test(unittest.TestCase):
         self.assertEqual(self.draft(9), "")
         self.assertEqual(self.status, 1)
 
+    def test_ids_survive_a_reorder_that_moves_the_numbers(self):
+        first_key = rr.candidates(rr.read_log(self.log))[0][0]
+        first_id = rr.cid(first_key)
+        self.assertIn(f"1. **src/test.sh must be run from the repo root** `{first_id}`", self.report())
+        with self.log.open("a") as f:      # the block lesson gains a third day and now sorts first
+            f.write("2026-11-06\tBLOCK\tverify: test command failed: bash src/test.sh\n")
+        self.assertNotEqual(rr.candidates(rr.read_log(self.log))[0][0], first_key)   # position 1 is another lesson now
+        self.assertEqual(rr.cmd_mark(self.log, [first_id]), 0)
+        self.assertEqual(self.log.with_suffix(".promoted").read_text().split("\t")[1].strip(), first_key)
+
+    def test_mark_and_draft_refuse_an_unknown_id(self):
+        self.assertEqual(rr.cmd_mark(self.log, ["rzzzzzz"]), 1)
+        self.assertEqual(self.log.with_suffix(".promoted").read_text(), "")
+        self.assertEqual(rr.cmd_mark(self.log, []), 1)
+        self.assertEqual(self.draft("rzzzzzz"), "")
+        self.assertEqual(self.status, 1)
+
+    def test_draft_by_id_and_main_passes_ids_through(self):
+        first_id = rr.cid(rr.candidates(rr.read_log(self.log))[0][0])
+        self.assertIn("grep -rnE -- 'src/test.sh'", self.draft(first_id))
+        self.assertEqual(rr.main(["mark", str(self.log), first_id]), 0)
+        self.assertEqual(rr.main(["draft", str(self.log), first_id]), 0)
+
     def test_recurrence_after_promotion(self):
         key = rr.norm("src/test.sh must run from the repo root")
         self.log.with_suffix(".promoted").write_text(f"2026-11-02\t{key}\n")

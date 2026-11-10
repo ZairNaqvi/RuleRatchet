@@ -17,10 +17,12 @@ to be learned again, and the tool tells you when it was.
    An entry naming a path, flag, command, or exit code drafts a check; anything
    else drafts a prescriptive rule, flagged when it is conditional or names no
    command or path, since such rules are followed less.
-3. **Promote.** `ruleratchet draft <log> <n>` prints a block to paste: a shell
+3. **Promote.** `ruleratchet draft <log> <id>` prints a block to paste: a shell
    check for a mechanical entry, one rule line for a judgement entry, with
    placeholders for what only you know. You adopt it by hand, in your agent
-   instructions file or as a lint rule, and record it: `ruleratchet mark <log> <n>`.
+   instructions file or as a lint rule, and record it: `ruleratchet mark <log> <id>`.
+   The id is printed beside each candidate and stays the same as the log grows;
+   a report position can shift when a new entry arrives between report and mark.
 4. **Measure.** `ruleratchet health <log>` counts the promoted rules that held
    and the ones that broke, and exits 1 when one broke, so a scheduler can
    alert on it. A promoted entry that recurs after its promotion date is
