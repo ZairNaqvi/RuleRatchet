@@ -6,7 +6,7 @@ Usage:
   ruleratchet uninstall <host> [<repo>]    remove it
   ruleratchet path                         print this repository's log path
   ruleratchet report <log>                 what has recurred, with a drafted rule or check each
-  ruleratchet mark <log> <n> [<n> ...]     record candidate n as promoted today
+  ruleratchet mark <log> <id> [<id> ...]   record a candidate as promoted today, by the id report prints
   ruleratchet health <log>                 did the promoted rules hold; exits 1 when one broke
   ruleratchet log <log> <kind> <text>      append one dated entry (once per day per entry)
   ruleratchet capture                      stop hook: reads the event JSON on stdin
@@ -19,7 +19,7 @@ producer can write it; `capture` and `block` write it from both supported agent
 CLIs, to ~/.ruleratchet/<key>.log keyed by the repository path (RULERATCHET_HOME
 moves it). Promotions are recorded beside the log in <log>.promoted.
 
-`ruleratchet draft <log> <n>` prints a block for candidate n, ready to paste
+`ruleratchet draft <log> <id>` prints a block for that candidate, ready to paste
 into a lint script or the agent instructions file. It writes nothing.
 
 A candidate is an entry whose normalized text, or a near-duplicate, was seen on
@@ -120,10 +120,11 @@ def paste_block(text, members, days):
 
 def cmd_draft(log, n):
     cands = candidates(read_log(log))
-    if not 1 <= n <= len(cands):
+    i = resolve(cands, n)
+    if i is None:
         print(f"ruleratchet: no candidate {n} (the report lists {len(cands)})", file=sys.stderr)
         return 1
-    _, members, days = cands[n - 1]
+    _, members, days = cands[i]
     print(paste_block(members[-1][2], members, days))
     return 0
 
@@ -159,6 +160,19 @@ def candidates(rows):
             out.append((key, members, days))
     out.sort(key=lambda c: (-len(c[2]), -len(c[1])))
     return out
+
+
+def cid(key):
+    """A candidate's id. It stays the same as the log grows; its position in the report does not."""
+    return "r" + hashlib.sha256(key.encode()).hexdigest()[:6]
+
+
+def resolve(cands, ref):
+    """Index of the candidate named by an id, or by a report position, or None."""
+    ref = str(ref)
+    if ref.isdigit():
+        return int(ref) - 1 if 1 <= int(ref) <= len(cands) else None
+    return next((i for i, c in enumerate(cands) if cid(c[0]) == ref), None)
 
 
 def read_promoted(path):
@@ -198,7 +212,7 @@ def cmd_report(log, flags=()):
         text = members[-1][2]
         kind = classify(text)
         kinds = collections.Counter(r[1] for r in members)
-        out.append(f"{i}. **{text}**")
+        out.append(f"{i}. **{text}** `{cid(key)}`")
         out.append(f"   - seen {len(members)} time(s) on {len(days)} day(s): {', '.join(days)}; kinds: {dict(kinds)}")
         out.append(f"   - {kind}: {draft(kind, text)}")
         if key in promoted:
@@ -207,7 +221,7 @@ def cmd_report(log, flags=()):
             out.append(f"   - promoted on {promoted[key]}; {verdict}")
         out.append("")
     if shown:
-        out.append(f"Accept one with: ruleratchet mark {log} <n>   (records the date; later reports show recurrence)")
+        out.append(f"Accept one by its id: ruleratchet mark {log} <id>   (records the date; later reports show recurrence)")
     else:
         out.append("No candidate matches the filters." if cands else "No entry has recurred yet. Nothing to promote.")
     if "--out" in opts:
@@ -268,13 +282,17 @@ def cmd_mark(log, numbers):
     today = datetime.date.today().isoformat()
     path = log.with_suffix(".promoted")
     with path.open("a", encoding="utf-8") as f:
-        for n in numbers:
-            if 1 <= n <= len(cands):
-                f.write(f"{today}\t{cands[n - 1][0]}\n")
-                print(f"ruleratchet: marked {n} as promoted on {today}")
-            else:
-                print(f"ruleratchet: no candidate {n}", file=sys.stderr)
-    return 0
+        for ref in numbers:
+            i = resolve(cands, ref)
+            if i is None:
+                print(f"ruleratchet: no candidate {ref}; take the id from the report", file=sys.stderr)
+                continue
+            key, members, _ = cands[i]
+            f.write(f"{today}\t{key}\n")
+            print(f"ruleratchet: marked {cid(key)} as promoted on {today}: {members[-1][2]}")
+    if not numbers:
+        print("ruleratchet: name at least one candidate id from the report", file=sys.stderr)
+    return 1 if not numbers or any(resolve(cands, ref) is None for ref in numbers) else 0
 
 
 def cmd_log(log, kind, text):
@@ -431,11 +449,11 @@ def main(argv=None):
         if cmd == "report":
             return cmd_report(log, rest[1:])
         if cmd == "mark":
-            return cmd_mark(log, [int(a) for a in rest[1:] if a.isdigit()])
+            return cmd_mark(log, rest[1:])
         if cmd == "log" and len(rest) >= 3:
             return cmd_log(log, rest[1], " ".join(rest[2:]))
-    if cmd == "draft" and len(rest) == 2 and rest[1].isdigit():
-        return cmd_draft(pathlib.Path(rest[0]).expanduser(), int(rest[1]))
+    if cmd == "draft" and len(rest) == 2:
+        return cmd_draft(pathlib.Path(rest[0]).expanduser(), rest[1])
     if cmd == "health" and len(rest) == 1:
         return cmd_health(pathlib.Path(rest[0]).expanduser())
     print(__doc__, file=sys.stderr)
