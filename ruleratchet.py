@@ -23,6 +23,11 @@ command, or exit code is mechanical and drafts a check; anything else drafts a
 prescriptive rule. A promoted entry that recurs after its promotion date is
 reported as such: the rule did not stop it, so a check should replace it.
 Nothing here calls a model and nothing leaves the machine.
+
+report takes --since YYYY-MM-DD (only candidates seen on or after that date),
+--min-days N (only candidates seen on N or more days), and --out <file> (write
+the report instead of printing it). A candidate keeps its number from the full
+report under any filter, so `mark` needs no flags.
 """
 import collections, datetime, hashlib, json, os, pathlib, re, shlex, shutil, subprocess, sys
 
@@ -116,27 +121,50 @@ def read_promoted(path):
     return promoted
 
 
-def cmd_report(log):
+REPORT_USAGE = "usage: ruleratchet report <log> [--since YYYY-MM-DD] [--min-days N] [--out <file>]"
+
+
+def cmd_report(log, flags=()):
+    opts = dict(zip(flags[::2], flags[1::2]))
+    since = opts.get("--since", "")
+    try:
+        if len(flags) % 2 or set(opts) - {"--since", "--min-days", "--out"}:
+            raise ValueError
+        if since:
+            datetime.date.fromisoformat(since)
+        min_days = int(opts.get("--min-days", 0))
+    except ValueError:
+        print(REPORT_USAGE, file=sys.stderr)
+        return 2
     today = datetime.date.today().isoformat()
     cands = candidates(read_log(log))
     promoted = read_promoted(log.with_suffix(".promoted"))
-    print(f"# ruleratchet report, {today}, from {log}\n")
-    if not cands:
-        print("No entry has recurred yet. Nothing to promote.")
-        return 0
-    for i, (key, members, days) in enumerate(cands, 1):
+    out = [f"# ruleratchet report, {today}, from {log}", ""]
+    shown = 0
+    for i, (key, members, days) in enumerate(cands, 1):   # i is the number in the full report, so mark needs no flags
+        if len(days) < min_days or days[-1] < since:
+            continue
+        shown += 1
         text = members[-1][2]
         kind = classify(text)
         kinds = collections.Counter(r[1] for r in members)
-        print(f"{i}. **{text}**")
-        print(f"   - seen {len(members)} time(s) on {len(days)} day(s): {', '.join(days)}; kinds: {dict(kinds)}")
-        print(f"   - {kind}: {draft(kind, text)}")
+        out.append(f"{i}. **{text}**")
+        out.append(f"   - seen {len(members)} time(s) on {len(days)} day(s): {', '.join(days)}; kinds: {dict(kinds)}")
+        out.append(f"   - {kind}: {draft(kind, text)}")
         if key in promoted:
             recur = [r for r in members if r[0] > promoted[key]]
             verdict = f"recurred {len(recur)} time(s) since, so the rule did not stop it; replace it with a check" if recur else "no recurrence since"
-            print(f"   - promoted on {promoted[key]}; {verdict}")
-        print()
-    print(f"Accept one with: ruleratchet mark {log} <n>   (records the date; later reports show recurrence)")
+            out.append(f"   - promoted on {promoted[key]}; {verdict}")
+        out.append("")
+    if shown:
+        out.append(f"Accept one with: ruleratchet mark {log} <n>   (records the date; later reports show recurrence)")
+    else:
+        out.append("No candidate matches the filters." if cands else "No entry has recurred yet. Nothing to promote.")
+    if "--out" in opts:
+        pathlib.Path(opts["--out"]).expanduser().write_text("\n".join(out) + "\n", encoding="utf-8")
+        print(f"ruleratchet: wrote {opts['--out']} ({shown} candidate(s))")
+    else:
+        print("\n".join(out))
     return 0
 
 
@@ -303,7 +331,7 @@ def main(argv=None):
     if cmd in ("report", "mark", "log") and rest:
         log = pathlib.Path(rest[0]).expanduser()
         if cmd == "report":
-            return cmd_report(log)
+            return cmd_report(log, rest[1:])
         if cmd == "mark":
             return cmd_mark(log, [int(a) for a in rest[1:] if a.isdigit()])
         if cmd == "log" and len(rest) >= 3:

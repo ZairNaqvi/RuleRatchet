@@ -64,3 +64,15 @@ The drafting rules follow two measured findings on agent instruction files:
 conditional phrasing ("if X then Y") is followed less than a plain instruction
 (arXiv 2611.04367), and a rule that names a concrete command or path raises
 compliance (arXiv 2610.04832).
+
+## Report flags
+
+```
+ruleratchet report <log> --since 2026-11-01 --min-days 3 --out weekly.md
+```
+
+`--since` shows only candidates seen on or after the date, with their full
+history. `--min-days` shows only candidates seen on that many days. `--out`
+writes the report to a file. A candidate keeps its number from the full report
+under any filter, so `ruleratchet mark <log> <n>` needs no flags. A weekly
+cron line is `ruleratchet report <log> --since <last week> --out <file>`.
