@@ -64,6 +64,22 @@ def jaccard(a, b):
     return len(a & b) / len(a | b) if a and b else 0.0
 
 
+SECRET = re.compile(
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"|AKIA[0-9A-Z]{16}"
+    r"|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
+    r"|sk-[A-Za-z0-9_-]{20,}|xox[abp]-[A-Za-z0-9-]{10,}"
+    r"|Bearer\s+[A-Za-z0-9._-]{10,}"
+)
+
+
+def mask(text):
+    """Replace credential-shaped text. A lesson is pasted into rules files and pull requests, so it must not carry one."""
+    text = SECRET.sub("[redacted]", text)
+    text = re.sub(r"(://)[^/\s:@]+:[^/\s@]+@", r"\1[redacted]@", text)                    # user:password in a URL
+    return re.sub(r"(?i)\b((?:api[_ -]?key|secret|token|password|passwd)\s*[:=]\s*)\S+", r"\1[redacted]", text)
+
+
 def classify(text):
     t = text.lower()
     tokens = t.split()
@@ -301,7 +317,7 @@ def cmd_mark(log, numbers):
 
 
 def cmd_log(log, kind, text):
-    text = " ".join(text.split())[:200]
+    text = mask(" ".join(text.split()))[:200]   # mask before cutting, so no half of a token survives
     if not text:
         return 0
     entry = f"{utc_today()}\t{kind}\t{text}"

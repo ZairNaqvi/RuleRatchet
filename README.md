@@ -29,7 +29,9 @@ to be learned again, and the tool tells you when it was.
    reported as such. That is the finding: the rule did not stop it, so a check
    should replace it.
 
-No model call anywhere; nothing leaves the machine.
+No model call anywhere; nothing leaves the machine. Credential-shaped text in
+an entry is replaced with `[redacted]` before it is written, because a lesson
+ends up pasted into a rules file or a pull request.
 
 ## Install
 

@@ -183,6 +183,22 @@ class Test(unittest.TestCase):
         rr.cmd_log(log, "LEARN", "same   thing")
         self.assertEqual(len(log.read_text().splitlines()), 1)
 
+    def test_credential_shaped_text_never_reaches_the_log(self):
+        cases = {
+            "push failed with ghp_abcdefghijklmnopqrstuvwxyz0123 in the remote": "push failed with [redacted] in the remote",
+            "db url postgres://app:hunter2@db.internal/main refused": "db url postgres://[redacted]@db.internal/main refused",
+            "set API_KEY=abc123 before bash run.sh": "set API_KEY=[redacted] before bash run.sh",
+            "header was Authorization: Bearer abcdef.ghijkl-mnop": "header was Authorization: [redacted]",
+            "password: hunter2 is in .env": "password: [redacted] is in .env",
+            "the token bucket allows 5 calls a minute": "the token bucket allows 5 calls a minute",
+            "src/test.sh must run from the repo root": "src/test.sh must run from the repo root",
+        }
+        for text, want in cases.items():
+            self.assertEqual(rr.mask(text), want)
+        log = pathlib.Path(self.dir.name) / "m.log"
+        rr.cmd_log(log, "LEARN", "export TOKEN=" + "x" * 300)
+        self.assertTrue(log.read_text().rstrip().endswith("LEARN\texport TOKEN=[redacted]"))
+
     def test_version(self):
         out = io.StringIO()
         with redirect_stdout(out):
