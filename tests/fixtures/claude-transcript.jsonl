@@ -1,0 +1,36 @@
+{"type": "queue-operation"}
+{"type": "queue-operation"}
+{"type": "queue-operation"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "user", "message": {"role": "user", "content": "Reply with exactly these two lines and nothing else:\n[LEARN] the recorded fixture line\nDone."}}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "last-prompt"}
+{"type": "file-history-snapshot"}
+{"type": "queue-operation"}
+{"type": "atis-latch"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "attachment"}
+{"type": "api-request-shape"}
+{"type": "api-request-blob"}
+{"type": "api-request-blob"}
+{"type": "api-request"}
+{"type": "last-prompt"}
+{"type": "atis-latch"}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "thinking"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "[LEARN] the recorded fixture line\nDone."}]}}
+{"type": "attachment"}
+{"type": "last-prompt"}
+{"type": "atis-latch"}
+{"type": "system"}
+{"type": "last-prompt"}
+{"type": "cost-state"}
