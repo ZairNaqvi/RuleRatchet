@@ -93,6 +93,43 @@ class Test(unittest.TestCase):
         self.log.with_suffix(".promoted").write_text(f"2026-11-02\t{key}\n")
         self.assertIn("recurred 1 time(s) since", self.report())
 
+    def health(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.status = rr.cmd_health(self.log)
+        return out.getvalue()
+
+    def promote(self, text_part, date):
+        key = next(k for k, members in rr.cluster(rr.read_log(self.log)) if text_part in members[-1][2])
+        with self.log.with_suffix(".promoted").open("a") as f:
+            f.write(f"{date}\t{key}\n")
+
+    def test_health_with_no_promotions(self):
+        out = self.health()
+        self.assertIn("entries: 7 over 4 day(s)", out)
+        self.assertIn("promoted: 0 (held 0, broken 0)", out)
+        self.assertIn("candidates not yet promoted: 3", out)
+        self.assertEqual(self.status, 0)
+
+    def test_health_separates_held_from_broken_and_exits_1(self):
+        self.promote("src/test.sh must", "2026-11-02")      # seen again on 11-03: broken
+        self.promote("branch", "2026-11-05")                # nothing after 11-05: held
+        out = self.health()
+        self.assertIn("promoted: 2 (held 1, broken 1)", out)
+        self.assertIn("recurred 1 time(s), last 2026-11-03", out)
+        self.assertIn("if a branch is to be deleted, ask first: promoted 2026-11-05, quiet for", out)
+        self.assertIn("days from first sighting to promotion: median 1", out)
+        self.assertIn("candidates not yet promoted: 1", out)
+        self.assertEqual(self.status, 1)
+
+    def test_health_survives_a_stale_or_malformed_promotion(self):
+        self.log.with_suffix(".promoted").write_text("2026-11-02\tgone from the log\nsoon\t" + rr.norm("npx first run takes twenty seconds") + "\n")
+        out = self.health()
+        self.assertIn("promotions with no matching log entry or a bad date: 2", out)
+        self.assertIn("promoted: 0 (held 0, broken 0)", out)
+        self.assertNotIn("None", out)
+        self.assertEqual(self.status, 0)
+
     def test_mark_records_today(self):
         rr.cmd_mark(self.log, [2])
         line = self.log.with_suffix(".promoted").read_text().strip()

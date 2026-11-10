@@ -7,6 +7,7 @@ Usage:
   ruleratchet path                         print this repository's log path
   ruleratchet report <log>                 what has recurred, with a drafted rule or check each
   ruleratchet mark <log> <n> [<n> ...]     record candidate n as promoted today
+  ruleratchet health <log>                 did the promoted rules hold; exits 1 when one broke
   ruleratchet log <log> <kind> <text>      append one dated entry (once per day per entry)
   ruleratchet capture                      stop hook: reads the event JSON on stdin
   ruleratchet block <text>                 for a guard hook: record that it refused something
@@ -214,6 +215,51 @@ def cmd_report(log, flags=()):
     return 0
 
 
+def days_between(a, b):
+    try:
+        return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+    except ValueError:      # a hand-edited date; skip it rather than fail the whole report
+        return None
+
+
+def cmd_health(log):
+    """Did the promoted rules hold. Exits 1 when one broke, so a scheduler can alert on it."""
+    rows = read_log(log)
+    promoted = read_promoted(log.with_suffix(".promoted"))
+    today = datetime.date.today().isoformat()
+    held, broken, waits = [], [], []
+    for key, members in cluster(rows):
+        if key not in promoted:
+            continue
+        since, text = promoted[key], members[-1][2]
+        if days_between(since, today) is None:      # a hand-edited date; counted below as not matching
+            continue
+        wait = days_between(min(r[0] for r in members), since)
+        if wait is not None:
+            waits.append(wait)
+        after = sorted(r[0] for r in members if r[0] > since)
+        if after:
+            broken.append(f"- {text}: promoted {since}, recurred {len(after)} time(s), last {after[-1]}")
+        else:
+            held.append(f"- {text}: promoted {since}, quiet for {days_between(since, today)} day(s)")
+    waiting = sum(1 for key, _, _ in candidates(rows) if key not in promoted)
+    print(f"# ruleratchet health, {today}, from {log}\n")
+    print(f"entries: {len(rows)} over {len({r[0] for r in rows})} day(s)")
+    print(f"promoted: {len(held) + len(broken)} (held {len(held)}, broken {len(broken)})")
+    if len(promoted) > len(held) + len(broken):
+        print(f"promotions with no matching log entry or a bad date: {len(promoted) - len(held) - len(broken)}")
+    if waits:
+        print(f"days from first sighting to promotion: median {sorted(waits)[len(waits) // 2]}")
+    print(f"candidates not yet promoted: {waiting}")
+    if broken:
+        print("\nbroken (recurred after promotion; replace the rule with a check):")
+        print("\n".join(broken))
+    if held:
+        print("\nheld:")
+        print("\n".join(held))
+    return 1 if broken else 0
+
+
 def cmd_mark(log, numbers):
     cands = candidates(read_log(log))
     today = datetime.date.today().isoformat()
@@ -384,6 +430,8 @@ def main(argv=None):
             return cmd_log(log, rest[1], " ".join(rest[2:]))
     if cmd == "draft" and len(rest) == 2 and rest[1].isdigit():
         return cmd_draft(pathlib.Path(rest[0]).expanduser(), int(rest[1]))
+    if cmd == "health" and len(rest) == 1:
+        return cmd_health(pathlib.Path(rest[0]).expanduser())
     print(__doc__, file=sys.stderr)
     return 2
 

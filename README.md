@@ -21,7 +21,9 @@ to be learned again, and the tool tells you when it was.
    check for a mechanical entry, one rule line for a judgement entry, with
    placeholders for what only you know. You adopt it by hand, in your agent
    instructions file or as a lint rule, and record it: `ruleratchet mark <log> <n>`.
-4. **Measure.** A promoted entry that recurs after its promotion date is
+4. **Measure.** `ruleratchet health <log>` counts the promoted rules that held
+   and the ones that broke, and exits 1 when one broke, so a scheduler can
+   alert on it. A promoted entry that recurs after its promotion date is
    reported as such. That is the finding: the rule did not stop it, so a check
    should replace it.
 
