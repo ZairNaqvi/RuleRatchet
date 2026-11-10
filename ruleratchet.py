@@ -12,6 +12,7 @@ Usage:
   ruleratchet capture                      stop hook: reads the event JSON on stdin
   ruleratchet block <text>                 for a guard hook: record that it refused something
   ruleratchet norm <text>                  print the normalized key for <text>
+  ruleratchet --version
 
 The log is a text file, one entry per line: date<TAB>kind<TAB>text. Any
 producer can write it; `capture` and `block` write it from both supported agent
@@ -34,6 +35,8 @@ the report instead of printing it). A candidate keeps its number from the full
 report under any filter, so `mark` needs no flags.
 """
 import collections, datetime, hashlib, json, os, pathlib, re, shlex, shutil, subprocess, sys
+
+__version__ = "0.2.0"
 
 STOP = set("a an and are as at be by for from in into is it its of on or that the this to use when with you your not do does if then always never first before after must should".split())
 COMMANDS = {"bash", "git", "gh", "npm", "npx", "node", "python3", "python", "make", "cargo", "go", "pnpm", "yarn", "deno", "docker", "curl"}
@@ -402,6 +405,9 @@ def cmd_install(host, repo, remove=False):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] in ("--version", "-V"):
+        print(f"ruleratchet {__version__}")
+        return 0
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 0

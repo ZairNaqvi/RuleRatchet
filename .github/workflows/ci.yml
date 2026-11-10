@@ -63,6 +63,7 @@ jobs:
       - name: Installed with pip, the registered hook command runs
         run: |
           pip install --quiet .
+          test "$(pip show ruleratchet | sed -n 's/^Version: //p')" = "$(python3 -c 'import ruleratchet; print(ruleratchet.__version__)')"
           mkdir "$RUNNER_TEMP/consumer" && git -C "$RUNNER_TEMP/consumer" init -q
           ruleratchet install codex "$RUNNER_TEMP/consumer"
           cmd=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['hooks']['Stop'][0]['hooks'][0]['command'])" "$RUNNER_TEMP/consumer/.codex/hooks.json")

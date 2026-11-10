@@ -141,6 +141,13 @@ class Test(unittest.TestCase):
         rr.cmd_log(log, "LEARN", "same   thing")
         self.assertEqual(len(log.read_text().splitlines()), 1)
 
+    def test_version(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(rr.main(["--version"]), 0)
+        self.assertEqual(out.getvalue().strip(), f"ruleratchet {rr.__version__}")
+        self.assertIn(f"## {rr.__version__}\n", (pathlib.Path(rr.__file__).parent / "CHANGELOG.md").read_text())
+
 
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 

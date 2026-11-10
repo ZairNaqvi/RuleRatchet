@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Check the tag and publish the release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The tag, the installed version, and the changelog agree
+        run: |
+          pip install --quiet .
+          version=$(ruleratchet --version | cut -d' ' -f2)
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version $version. Fix: bump __version__ or retag"; exit 1; }
+          grep -q "^## $version$" CHANGELOG.md || { echo "CHANGELOG.md has no section for $version. Fix: add one"; exit 1; }
+          python3 -m unittest discover tests
+      - name: Publish the release with its changelog section
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          awk -v v="## $version" '$0 == v {on = 1; next} /^## / {on = 0} on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
