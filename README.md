@@ -11,7 +11,7 @@ to be learned again, and the tool tells you when it was.
 1. **Capture.** The stop hook records lines the agent marked `[LEARN]` or
    `[FRICTION]` in its reply. Any hook that blocks an action records a `BLOCK`
    entry. One log per repository, outside the repository, one line per entry:
-   `date<TAB>kind<TAB>text`, kept once per day each.
+   `date<TAB>kind<TAB>text`, kept once per day each. Dates are UTC.
 2. **Report.** `ruleratchet report <log>` clusters rewordings of the same
    lesson and lists what was seen on two or more days or three or more times.
    An entry naming a path, flag, command, or exit code drafts a check; anything

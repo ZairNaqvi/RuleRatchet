@@ -130,10 +130,29 @@ class Test(unittest.TestCase):
         self.assertNotIn("None", out)
         self.assertEqual(self.status, 0)
 
+    def test_dates_are_utc_whatever_the_local_zone(self):
+        import time
+        saved, seen = os.environ.get("TZ"), set()
+        try:
+            for zone in ("Etc/GMT+12", "Pacific/Kiritimati"):   # 26 hours apart: their local dates never agree
+                os.environ["TZ"] = zone
+                time.tzset()
+                seen.add(rr.utc_today())
+                log = pathlib.Path(self.dir.name) / "zone.log"
+                rr.cmd_log(log, "LEARN", "one entry, whatever the zone")
+        finally:
+            if saved is None:
+                del os.environ["TZ"]
+            else:
+                os.environ["TZ"] = saved
+            time.tzset()
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(len(log.read_text().splitlines()), 1)      # same UTC day in both zones, so one line
+
     def test_mark_records_today(self):
         rr.cmd_mark(self.log, [2])
         line = self.log.with_suffix(".promoted").read_text().strip()
-        self.assertTrue(line.startswith(datetime.date.today().isoformat()))
+        self.assertTrue(line.startswith(rr.utc_today()))
 
     def test_log_dedupes_per_day(self):
         log = pathlib.Path(self.dir.name) / "y.log"

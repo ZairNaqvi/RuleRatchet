@@ -17,7 +17,7 @@ Usage:
 The log is a text file, one entry per line: date<TAB>kind<TAB>text. Any
 producer can write it; `capture` and `block` write it from both supported agent
 CLIs, to ~/.ruleratchet/<key>.log keyed by the repository path (RULERATCHET_HOME
-moves it). Promotions are recorded beside the log in <log>.promoted.
+moves it). Dates are UTC. Promotions are recorded beside the log in <log>.promoted.
 
 `ruleratchet draft <log> <n>` prints a block for candidate n, ready to paste
 into a lint script or the agent instructions file. It writes nothing.
@@ -41,6 +41,11 @@ __version__ = "0.2.0"
 STOP = set("a an and are as at be by for from in into is it its of on or that the this to use when with you your not do does if then always never first before after must should".split())
 COMMANDS = {"bash", "git", "gh", "npm", "npx", "node", "python3", "python", "make", "cargo", "go", "pnpm", "yarn", "deno", "docker", "curl"}
 THRESHOLD = 0.6
+
+
+def utc_today():
+    """Every date this tool writes or compares is UTC, so a log fed by several producers agrees with itself."""
+    return datetime.datetime.now(datetime.timezone.utc).date().isoformat()
 
 
 def stem(w):
@@ -186,7 +191,7 @@ def cmd_report(log, flags=()):
     except ValueError:
         print(REPORT_USAGE, file=sys.stderr)
         return 2
-    today = datetime.date.today().isoformat()
+    today = utc_today()
     cands = candidates(read_log(log))
     promoted = read_promoted(log.with_suffix(".promoted"))
     out = [f"# ruleratchet report, {today}, from {log}", ""]
@@ -229,7 +234,7 @@ def cmd_health(log):
     """Did the promoted rules hold. Exits 1 when one broke, so a scheduler can alert on it."""
     rows = read_log(log)
     promoted = read_promoted(log.with_suffix(".promoted"))
-    today = datetime.date.today().isoformat()
+    today = utc_today()
     held, broken, waits = [], [], []
     for key, members in cluster(rows):
         if key not in promoted:
@@ -265,7 +270,7 @@ def cmd_health(log):
 
 def cmd_mark(log, numbers):
     cands = candidates(read_log(log))
-    today = datetime.date.today().isoformat()
+    today = utc_today()
     path = log.with_suffix(".promoted")
     with path.open("a", encoding="utf-8") as f:
         for n in numbers:
@@ -281,7 +286,7 @@ def cmd_log(log, kind, text):
     text = " ".join(text.split())[:200]
     if not text:
         return 0
-    entry = f"{datetime.date.today().isoformat()}\t{kind}\t{text}"
+    entry = f"{utc_today()}\t{kind}\t{text}"
     log.parent.mkdir(parents=True, exist_ok=True)
     existing = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
     if entry not in existing:   # once per day; repeats on later days are what report counts
