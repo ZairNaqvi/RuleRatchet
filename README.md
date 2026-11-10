@@ -56,6 +56,13 @@ cannot parse, and adds the file to `.git/info/exclude` because the hook command
 is a path on this machine. `ruleratchet uninstall <host>` removes it. The
 second host asks you to trust a new project hook once, in its hooks menu.
 
+The agent has to be told to mark its lessons, or the log stays empty.
+`ruleratchet instructions` prints a short block for the agent instructions file:
+
+```
+ruleratchet instructions >> AGENTS.md
+```
+
 The hook is `ruleratchet capture`: it reads the stop event on stdin and records
 the marked lines of the agent's last reply. A guard hook of your own records a
 refusal with `ruleratchet block "<guard>: <reason>"`.
