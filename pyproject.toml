@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ruleratchet"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Turn repeated agent friction into rules, and check that they held."
 readme = "README.md"
 license = {text = "MIT"}
@@ -16,3 +16,6 @@ ruleratchet = "ruleratchet:main"
 
 [tool.setuptools]
 py-modules = ["ruleratchet"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ruleratchet.__version__"}
