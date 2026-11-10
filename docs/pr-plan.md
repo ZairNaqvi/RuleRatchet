@@ -82,3 +82,30 @@ README works for anyone.
 - A model call anywhere. The drafts are templates; wording stays with the human.
 - A daemon, a database, or a vector index. The log is a text file.
 - Applying a rule automatically. The ratchet turns only when a person clicks it.
+
+## Second set (v0.3.0)
+
+The first seven PRs shipped as v0.2.0. This set closes gaps found by using
+the tool, each with a concrete failure. Same rules: independent branches from
+`main`, none stacked, edits placed so they merge in any order.
+
+| PR | Branch | Concern |
+|---|---|---|
+| 8 | `fix-stable-ids` | A report position shifts when the stop hook logs an entry between report and mark; candidates get ids that do not |
+| 9 | `fix-utc-dates` | Local dates disagree with a producer that writes UTC; every date is UTC |
+| 10 | `fix-mask-secrets` | A lesson can carry a credential into a rules file; credential-shaped text is masked at the write |
+| 11 | `feat-default-log` | Every command needed the log path; report, mark, draft, and health default to this repository's log |
+| 12 | `feat-instructions` | Nothing told the agent to mark lessons; `ruleratchet instructions` prints the block and install points at it |
+| 13 | `docs-plan-second-set` | This section |
+
+After they merge:
+
+- `chore-release-0.3`: version 0.3.0 and its changelog section, then the tag.
+  The changelog is written in that one PR so the five above do not all edit
+  the same lines.
+- `docs-public` (PR 8 of the first table, still open): stranger read-through,
+  public flip, branch protection. Needs the owner's decision, not a branch.
+
+Still not planned: a model call, a daemon or database, applying a rule
+automatically, and a recording of the second host until a session of it can
+be run on this machine.
