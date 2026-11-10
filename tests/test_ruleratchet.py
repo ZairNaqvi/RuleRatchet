@@ -206,6 +206,35 @@ class TestHooks(unittest.TestCase):
         self.assertEqual(self.capture({"transcript_path": "/nonexistent"}), 0)
         self.assertEqual(self.log_text(), "")
 
+    def run_main(self, *argv):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.status = rr.main(list(argv))
+        return out.getvalue()
+
+    def test_the_log_argument_defaults_to_this_repository(self):
+        log = rr.default_log()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(LOG)
+        self.assertIn("1. **src/test.sh", self.run_main("report"))
+        self.assertIn("No candidate matches", self.run_main("report", "--min-days", "3"))
+        self.assertIn("promoted: 0", self.run_main("health"))
+        self.assertIn("grep -rnE", self.run_main("draft", "1"))
+        self.run_main("mark", "2")
+        self.assertTrue(log.with_suffix(".promoted").read_text().strip())
+        other = pathlib.Path(self.dir.name) / "other.log"
+        other.write_text("")
+        self.assertIn("Nothing to promote", self.run_main("report", str(other)))
+
+    def test_outside_a_repository_the_log_must_be_named(self):
+        here = os.getcwd()
+        os.chdir(self.dir.name)
+        try:
+            self.assertEqual(rr.main(["report"]), 2)
+            self.assertEqual(rr.main(["health"]), 2)
+        finally:
+            os.chdir(here)
+
     def test_install_is_idempotent_and_keeps_other_settings(self):
         repo = pathlib.Path(self.dir.name) / "repo"
         (repo / ".claude").mkdir(parents=True)

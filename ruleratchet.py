@@ -14,6 +14,9 @@ Usage:
   ruleratchet norm <text>                  print the normalized key for <text>
   ruleratchet --version
 
+report, mark, draft, and health use this repository's log when <log> is left
+out. A first argument that contains a slash or ends in .log is taken as the log.
+
 The log is a text file, one entry per line: date<TAB>kind<TAB>text. Any
 producer can write it; `capture` and `block` write it from both supported agent
 CLIs, to ~/.ruleratchet/<key>.log keyed by the repository path (RULERATCHET_HOME
@@ -303,6 +306,11 @@ def default_log():
     return pathlib.Path(home) / (hashlib.sha256(root.encode()).hexdigest()[:16] + ".log")
 
 
+def names_a_log(arg):
+    """True when a first argument is a log path, not a flag, a number, or a candidate id."""
+    return "/" in arg or arg.endswith(".log") or os.path.isfile(arg)
+
+
 def last_message(event):
     """The agent's last reply: from the stop event, else from the tail of the transcript."""
     if event.get("last_assistant_message"):
@@ -412,6 +420,12 @@ def main(argv=None):
         print(__doc__)
         return 0
     cmd, rest = argv[0], argv[1:]
+    if cmd in ("report", "mark", "draft", "health") and not (rest and names_a_log(rest[0])):
+        log = default_log()         # no log named: use this repository's
+        if log is None:
+            print("ruleratchet: not inside a repository; name the log file", file=sys.stderr)
+            return 2
+        rest = [str(log)] + rest
     if cmd == "norm" and rest:
         print(norm(" ".join(rest)))
         return 0
