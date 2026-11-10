@@ -51,18 +51,22 @@ jobs:
         with:
           python-version: "3.12"
       - run: python3 -m unittest discover -v tests
-      - name: Hook scripts parse and capture writes a log line
+      - name: The CLI works as a stop hook from the command line
         run: |
-          bash -n hooks/capture.sh hooks/block.sh scripts/setup.sh
+          bash -n scripts/setup.sh
           export RULERATCHET_HOME="$RUNNER_TEMP/rr"
-          printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"Done.\n[LEARN] tests run from the repo root.\n"}' | bash hooks/capture.sh
-          grep -q 'LEARN	tests run from the repo root' "$RULERATCHET_HOME"/*.log
-          bash hooks/block.sh "guard: refused a write"
-          grep -q 'BLOCK	guard: refused a write' "$RULERATCHET_HOME"/*.log
-      - name: Capture falls back to either host's transcript shape
+          printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"Done.\n[LEARN] tests run from the repo root.\n"}' | python3 ruleratchet.py capture
+          python3 ruleratchet.py block "guard: refused a write"
+          log=$(python3 ruleratchet.py path)
+          grep -q 'LEARN	tests run from the repo root' "$log"
+          grep -q 'BLOCK	guard: refused a write' "$log"
+      - name: Installed with pip, the registered hook command runs
         run: |
-          export RULERATCHET_HOME="$RUNNER_TEMP/rr2"
-          printf '%s' "{\"hook_event_name\":\"Stop\",\"transcript_path\":\"$PWD/tests/fixtures/transcript.jsonl\"}" | bash hooks/capture.sh
-          printf '%s' "{\"hook_event_name\":\"Stop\",\"transcript_path\":\"$PWD/tests/fixtures/rollout.jsonl\"}" | bash hooks/capture.sh
-          grep -q 'FRICTION	the first host writes transcript lines' "$RULERATCHET_HOME"/*.log
-          grep -q 'LEARN	the second host writes rollout lines' "$RULERATCHET_HOME"/*.log
+          pip install --quiet .
+          mkdir "$RUNNER_TEMP/consumer" && git -C "$RUNNER_TEMP/consumer" init -q
+          ruleratchet install codex "$RUNNER_TEMP/consumer"
+          cmd=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['hooks']['Stop'][0]['hooks'][0]['command'])" "$RUNNER_TEMP/consumer/.codex/hooks.json")
+          cd "$RUNNER_TEMP/consumer"
+          export RULERATCHET_HOME="$RUNNER_TEMP/rr3"
+          printf '%s' '{"last_assistant_message":"[FRICTION] installed hook ran."}' | sh -c "$cmd"
+          grep -q 'FRICTION	installed hook ran' "$(ruleratchet path)"

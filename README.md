@@ -8,7 +8,7 @@ to be learned again, and the tool tells you when it was.
 
 ## How it works
 
-1. **Capture.** A stop hook records lines the agent marked `[LEARN]` or
+1. **Capture.** The stop hook records lines the agent marked `[LEARN]` or
    `[FRICTION]` in its reply. Any hook that blocks an action records a `BLOCK`
    entry. One log per repository, outside the repository, one line per entry:
    `date<TAB>kind<TAB>text`, kept once per day each.
@@ -35,17 +35,28 @@ or run `python3 ruleratchet.py` from a checkout. Python 3.11 or later.
 
 ## Hooks
 
-`hooks/capture.sh` is a stop hook and `hooks/block.sh` is a helper other hooks
-call when they refuse something. Both agent CLIs use the same hook block shape;
-register the stop hook in the host's hook settings file for the project:
+Register the stop hook in a repository with one command, for either host:
 
-```json
-{ "hooks": { "Stop": [ { "hooks": [
-  { "type": "command", "command": "bash /path/to/RuleRatchet/hooks/capture.sh", "timeout": 30 } ] } ] } }
+```
+ruleratchet install claude          # writes .claude/settings.local.json
+ruleratchet install codex           # writes .codex/hooks.json
 ```
 
-The log lives under `~/.ruleratchet/` keyed by repository path; set
-`RULERATCHET_HOME` to move it.
+It merges into the existing file, never adds itself twice, refuses a file it
+cannot parse, and adds the file to `.git/info/exclude` because the hook command
+is a path on this machine. `ruleratchet uninstall <host>` removes it. The
+second host asks you to trust a new project hook once, in its hooks menu.
+
+The hook is `ruleratchet capture`: it reads the stop event on stdin and records
+the marked lines of the agent's last reply. A guard hook of your own records a
+refusal with `ruleratchet block "<guard>: <reason>"`.
+
+The log lives under `~/.ruleratchet/`, keyed by repository path; `ruleratchet
+path` prints it and `RULERATCHET_HOME` moves it. A weekly look is:
+
+```
+ruleratchet report "$(ruleratchet path)"
+```
 
 ## Evidence behind the drafts
 

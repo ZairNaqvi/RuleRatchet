@@ -29,7 +29,9 @@ Done when the CI smoke test covers both shapes.
 
 `ruleratchet install <host> [<repo>]` writes the stop hook entry into the
 host's project hook file (`.claude/settings.local.json` or
-`.codex/hooks.json`), merging with `jq` and never adding a duplicate command.
+`.codex/hooks.json`), merging in Python and never adding a duplicate command.
+A pip install ships only the module, so the hook itself becomes the
+`capture` subcommand, `block` joins it, and the two shell scripts are deleted.
 `uninstall` removes it. Verify: run twice on a scratch repo; second run changes
 nothing. Done when the README's manual JSON snippet is replaced by one command.
 
