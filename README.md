@@ -61,10 +61,11 @@ the marked lines of the agent's last reply. A guard hook of your own records a
 refusal with `ruleratchet block "<guard>: <reason>"`.
 
 The log lives under `~/.ruleratchet/`, keyed by repository path; `ruleratchet
-path` prints it and `RULERATCHET_HOME` moves it. A weekly look is:
+path` prints it and `RULERATCHET_HOME` moves it. `report`, `mark`, `draft`, and
+`health` use it when no log is named. A weekly look, from inside the repository:
 
 ```
-ruleratchet report "$(ruleratchet path)"
+ruleratchet report
 ```
 
 ## Evidence behind the drafts
