@@ -236,6 +236,29 @@ class TestHooks(unittest.TestCase):
         self.assertEqual((repo / ".codex" / "hooks.json").read_text(), "{ broken")
         self.assertEqual(rr.cmd_install("nope", repo), 2)
 
+    def test_instructions_are_captured_when_followed_and_not_when_quoted(self):
+        self.capture({"last_assistant_message": rr.INSTRUCTIONS})      # an agent quoting the block back
+        self.assertEqual(self.log_text(), "")
+        self.capture({"last_assistant_message": "Fixed.\n[LEARN] run src/test.sh from the repo root\n[FRICTION] the verify hook blocked the first attempt"})
+        self.assertEqual(len(self.log_text().splitlines()), 2)
+
+    def test_instructions_follow_the_wording_the_tool_asks_of_rules(self):
+        self.assertIn("[LEARN]", rr.INSTRUCTIONS)
+        self.assertIn("[FRICTION]", rr.INSTRUCTIONS)
+        for line in rr.INSTRUCTIONS.splitlines():
+            self.assertIsNone(rr.re.match(r"[-\s]*(if|when|whenever|unless)\b", line, rr.re.I), line)
+
+    def test_install_points_at_the_instructions_and_main_prints_them(self):
+        repo = pathlib.Path(self.dir.name) / "repo4"
+        repo.mkdir()
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rr.cmd_install("codex", repo)
+            rr.cmd_install("codex", repo, remove=True)
+            self.assertEqual(rr.main(["instructions"]), 0)
+        self.assertEqual(out.getvalue().count("ruleratchet instructions >> AGENTS.md"), 1)
+        self.assertIn(rr.INSTRUCTIONS, out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

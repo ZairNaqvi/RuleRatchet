@@ -11,6 +11,7 @@ Usage:
   ruleratchet log <log> <kind> <text>      append one dated entry (once per day per entry)
   ruleratchet capture                      stop hook: reads the event JSON on stdin
   ruleratchet block <text>                 for a guard hook: record that it refused something
+  ruleratchet instructions                 print the block that tells the agent how to mark lessons
   ruleratchet norm <text>                  print the normalized key for <text>
   ruleratchet --version
 
@@ -348,6 +349,17 @@ def cmd_capture():
     return 0
 
 
+INSTRUCTIONS = """## Lessons and friction
+
+End a reply with one line for each lesson or obstacle from that turn, in plain text at the start of a line:
+
+- `[LEARN] <what to do next time, naming the command or path>` for each correction the user made and each command that failed and then worked in a different form.
+- `[FRICTION] <what got in the way, naming the hook, permission, or tool>` for each blocked action, denied permission, or missing tool.
+
+Write none on a turn that had none. Keep secrets, tokens, and personal data out of these lines; they are saved to a local log and later pasted into rules.
+"""
+
+
 def hook_command():
     exe = shutil.which("ruleratchet")   # the host runs this through a shell, so quote paths with spaces
     return shlex.join([exe, "capture"] if exe else [sys.executable, str(pathlib.Path(__file__).resolve()), "capture"])
@@ -400,6 +412,8 @@ def cmd_install(host, repo, remove=False):
         if HOSTS[host] not in lines:
             exclude.write_text("\n".join(lines + [HOSTS[host]]) + "\n")
     print(f"ruleratchet: {verb} {path}")
+    if not remove:
+        print("ruleratchet: next, tell the agent how to mark lessons: ruleratchet instructions >> AGENTS.md")
     return 0
 
 
@@ -419,6 +433,9 @@ def main(argv=None):
         return cmd_install(rest[0], rest[1] if len(rest) > 1 else ".", remove=cmd == "uninstall")
     if cmd == "capture":
         return cmd_capture()
+    if cmd == "instructions":
+        print(INSTRUCTIONS, end="")
+        return 0
     if cmd == "path":
         log = default_log()
         print(log if log else "ruleratchet: not inside a repository", file=sys.stdout if log else sys.stderr)
