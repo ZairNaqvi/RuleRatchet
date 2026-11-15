@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- `status` also finds the marking instructions in `CLAUDE.local.md`, the
+  untracked personal file, so a setup that changes no shared file reads as set up.
+
 ## 0.3.1
 
 - `status` says whether capture is set up in a repository and whether anything

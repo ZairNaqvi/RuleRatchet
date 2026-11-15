@@ -7,7 +7,7 @@ How to use RuleRatchet week to week. `README.md` covers installing it.
 Two things must be true before anything shows up.
 
 1. The stop hook is registered: `ruleratchet install claude` or `ruleratchet install codex`, run inside the repository.
-2. The agent has been told to mark lessons: `ruleratchet instructions >> AGENTS.md`.
+2. The agent has been told to mark lessons: `ruleratchet instructions >> AGENTS.md`. To keep that out of a shared repository on Claude Code, append to `CLAUDE.local.md` instead and leave that file untracked.
 
 After that the agent ends a reply with lines like these, and the hook saves them:
 
@@ -75,7 +75,7 @@ Run `ruleratchet status` inside the repository. It checks each link in the chain
 $ ruleratchet status
 hook (claude): not registered
 hook (codex): not registered
-instructions: not found in AGENTS.md or CLAUDE.md
+instructions: not found in AGENTS.md, CLAUDE.md, or CLAUDE.local.md
 entries: none yet
 
 not working yet. Fix:
