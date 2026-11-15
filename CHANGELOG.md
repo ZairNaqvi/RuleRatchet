@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- `status` says whether capture is set up in a repository and whether anything
+  is arriving, and prints the command for whatever is missing.
+- Documentation for a first-time reader: a rewritten README, `docs/GUIDE.md`,
+  `docs/DESIGN.md`, and `docs/LOG-FORMAT.md`.
+- Package metadata carries the project URLs.
+
 ## 0.3.0
 
 - Candidates have ids. `report` prints one beside each candidate, and `mark`

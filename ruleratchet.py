@@ -41,7 +41,7 @@ under any filter, so `mark` needs no flags.
 """
 import collections, datetime, hashlib, json, os, pathlib, re, shlex, shutil, subprocess, sys
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 STOP = set("a an and are as at be by for from in into is it its of on or that the this to use when with you your not do does if then always never first before after must should".split())
 COMMANDS = {"bash", "git", "gh", "npm", "npx", "node", "python3", "python", "make", "cargo", "go", "pnpm", "yarn", "deno", "docker", "curl"}
