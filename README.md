@@ -98,6 +98,8 @@ Run these inside the repository you want to watch.
    ruleratchet report
    ```
 
+At any point, `ruleratchet status` says whether it is set up and whether anything has arrived.
+
 `docs/GUIDE.md` takes it from there.
 
 ## Commands
@@ -113,6 +115,7 @@ Run these inside the repository you want to watch.
 | `draft <id>` | Print a shell check or a rule line to paste. Writes nothing. |
 | `mark <id> [<id> ...]` | Record a candidate as promoted today. |
 | `health` | Count the rules that held and the ones that broke. Exits 1 when one broke. |
+| `status` | Say whether capture is set up here and whether anything is arriving. Exits 1 when it cannot be working. |
 | `path` | Print this repository's log path. |
 | `capture` | The stop hook itself. Reads the event on stdin. |
 | `block <text>` | For your own guard hooks: record a refusal. |

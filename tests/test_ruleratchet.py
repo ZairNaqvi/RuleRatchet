@@ -346,6 +346,57 @@ class TestHooks(unittest.TestCase):
         self.assertEqual(out.getvalue().count("ruleratchet instructions >> AGENTS.md"), 1)
         self.assertIn(rr.INSTRUCTIONS, out.getvalue())
 
+    def status_in(self, repo, capture=None):
+        here = os.getcwd()
+        os.chdir(repo)
+        out = io.StringIO()
+        try:
+            if capture:
+                self.capture(capture)
+            with redirect_stdout(out):
+                self.status = rr.cmd_status()
+        finally:
+            os.chdir(here)
+        return out.getvalue()
+
+    def new_repo(self, name):
+        repo = pathlib.Path(self.dir.name) / name
+        repo.mkdir()
+        rr.subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        return repo
+
+    def test_status_walks_from_nothing_to_working(self):
+        repo = self.new_repo("s1")
+        out = self.status_in(repo)
+        self.assertIn("hook (claude): not registered", out)
+        self.assertIn("ruleratchet install claude", out)
+        self.assertEqual(self.status, 1)
+        with redirect_stdout(io.StringIO()):
+            rr.cmd_install("codex", repo)
+        out = self.status_in(repo)
+        self.assertIn("hook (codex): registered in .codex/hooks.json", out)
+        self.assertIn("ruleratchet instructions >> AGENTS.md", out)
+        self.assertEqual(self.status, 1)
+        (repo / "AGENTS.md").write_text(rr.INSTRUCTIONS)
+        self.assertIn("set up, nothing captured yet", self.status_in(repo))
+        self.assertEqual(self.status, 0)
+        out = self.status_in(repo, capture={"last_assistant_message": "[LEARN] run src/test.sh from the repo root"})
+        self.assertIn("entries: 1, last on", out)
+        self.assertIn("working.", out)
+        self.assertEqual(self.status, 0)
+
+    def test_status_flags_a_hook_whose_command_is_gone_or_a_broken_file(self):
+        repo = self.new_repo("s2")
+        (repo / ".codex").mkdir()
+        (repo / ".codex" / "hooks.json").write_text(json.dumps({"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "/nonexistent/bin/ruleratchet capture"}]}]}}))
+        (repo / ".claude").mkdir()
+        (repo / ".claude" / "settings.local.json").write_text("{ broken")
+        out = self.status_in(repo)
+        self.assertIn("/nonexistent/bin/ruleratchet no longer exists", out)
+        self.assertIn("ruleratchet uninstall codex && ruleratchet install codex", out)
+        self.assertIn("hook (claude): not registered", out)
+        self.assertEqual(self.status, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

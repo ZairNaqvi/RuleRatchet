@@ -4,6 +4,7 @@
 Usage:
   ruleratchet install <host> [<repo>]      register the stop hook (host: claude | codex)
   ruleratchet uninstall <host> [<repo>]    remove it
+  ruleratchet status                       is capture set up here, and is anything arriving
   ruleratchet path                         print this repository's log path
   ruleratchet report <log>                 what has recurred, with a drafted rule or check each
   ruleratchet mark <log> <id> [<id> ...]   record a candidate as promoted today, by the id report prints
@@ -336,11 +337,18 @@ def cmd_log(log, kind, text):
 HOSTS = {"claude": ".claude/settings.local.json", "codex": ".codex/hooks.json"}
 
 
+def repo_root():
+    """The repository's top-level path, or None outside a repository."""
+    try:
+        return subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
 def default_log():
     """This repository's log, or None outside a repository."""
-    try:
-        root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
+    root = repo_root()
+    if root is None:
         return None
     home = os.environ.get("RULERATCHET_HOME") or pathlib.Path.home() / ".ruleratchet"
     return pathlib.Path(home) / (hashlib.sha256(root.encode()).hexdigest()[:16] + ".log")
@@ -464,6 +472,48 @@ def cmd_install(host, repo, remove=False):
     return 0
 
 
+def cmd_status():
+    """Is capture set up in this repository, and is anything arriving. Exits 1 when it cannot be working."""
+    root = repo_root()
+    if root is None:
+        print("ruleratchet: not inside a repository", file=sys.stderr)
+        return 1
+    root, log, fixes, registered = pathlib.Path(root), default_log(), [], False
+    print(f"ruleratchet {__version__} in {root}")
+    for host, rel in HOSTS.items():
+        try:
+            groups = json.loads((root / rel).read_text(encoding="utf-8")).get("hooks", {}).get("Stop", [])
+            commands = [h.get("command", "") for g in groups if is_ours(g) for h in g.get("hooks", [])]
+        except (OSError, ValueError, AttributeError, TypeError):
+            commands = []
+        if not commands:
+            print(f"hook ({host}): not registered")
+            continue
+        exe = shlex.split(commands[0])[0]
+        if shutil.which(exe) or pathlib.Path(exe).exists():
+            registered = True
+            print(f"hook ({host}): registered in {rel}")
+        else:       # the tool was moved or removed after install
+            print(f"hook ({host}): registered in {rel}, but {exe} no longer exists")
+            fixes.append(f"ruleratchet uninstall {host} && ruleratchet install {host}")
+    if not registered and not fixes:
+        fixes.append("ruleratchet install claude   (or: ruleratchet install codex)")
+    told = [f for f in ("AGENTS.md", "CLAUDE.md") if (root / f).is_file() and "[LEARN]" in (root / f).read_text(encoding="utf-8", errors="replace")]
+    print("instructions: " + ("found in " + ", ".join(told) if told else "not found in AGENTS.md or CLAUDE.md"))
+    if not told:
+        fixes.append("ruleratchet instructions >> AGENTS.md")
+    rows = read_log(log)
+    print(f"log: {log}")
+    print(f"entries: {len(rows)}, last on {rows[-1][0]}: [{rows[-1][1]}] {rows[-1][2]}" if rows else "entries: none yet")
+    if fixes:
+        print("\nnot working yet. Fix:")
+        for fix in fixes:
+            print(f"  {fix}")
+        return 1
+    print("\nworking." if rows else "\nset up, nothing captured yet. A reply that ends with a [LEARN] line will show up here.")
+    return 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] in ("--version", "-V"):
@@ -489,6 +539,8 @@ def main(argv=None):
     if cmd == "instructions":
         print(INSTRUCTIONS, end="")
         return 0
+    if cmd == "status":
+        return cmd_status()
     if cmd == "path":
         log = default_log()
         print(log if log else "ruleratchet: not inside a repository", file=sys.stdout if log else sys.stderr)

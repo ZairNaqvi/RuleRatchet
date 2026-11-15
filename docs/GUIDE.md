@@ -69,12 +69,23 @@ A broken rule is a lesson that came back after you promoted it. The rule did not
 
 ### Nothing shows up in the report
 
-Work down this list.
+Run `ruleratchet status` inside the repository. It checks each link in the chain and prints the fix for the first one that is missing:
 
-1. `ruleratchet path` prints the log. Is the file there, and does it have lines?
-2. No file: the hook is not running. Run `ruleratchet install <host>` again and, on Codex, trust the hook in the hooks menu.
-3. A file with only `BLOCK` lines: the agent was never told to mark lessons. Run `ruleratchet instructions >> AGENTS.md`.
-4. Lines, but an empty report: nothing has recurred yet. A lesson has to be seen on two days.
+```text
+$ ruleratchet status
+hook (claude): not registered
+hook (codex): not registered
+instructions: not found in AGENTS.md or CLAUDE.md
+entries: none yet
+
+not working yet. Fix:
+  ruleratchet install claude   (or: ruleratchet install codex)
+  ruleratchet instructions >> AGENTS.md
+```
+
+When it says `working.`, entries are arriving. An empty report then means nothing has recurred yet: a lesson has to be seen on two days.
+
+On Codex, also trust the project hook once in the hooks menu; `status` cannot see that.
 
 ### You want it from a scheduler
 
