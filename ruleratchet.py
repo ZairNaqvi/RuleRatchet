@@ -35,8 +35,8 @@ Nothing here calls a model and nothing leaves the machine.
 
 report takes --since YYYY-MM-DD (only candidates seen on or after that date),
 --min-days N (only candidates seen on N or more days), and --out <file> (write
-the report instead of printing it). A candidate keeps its number from the full
-report under any filter, so `mark` needs no flags.
+the report instead of printing it). A candidate keeps its id and its number
+under any filter, so `mark` needs no flags.
 """
 import collections, datetime, hashlib, json, os, pathlib, re, shlex, shutil, subprocess, sys
 
@@ -230,7 +230,7 @@ def cmd_report(log, flags=()):
     promoted = read_promoted(log.with_suffix(".promoted"))
     out = [f"# ruleratchet report, {today}, from {log}", ""]
     shown = 0
-    for i, (key, members, days) in enumerate(cands, 1):   # i is the number in the full report, so mark needs no flags
+    for i, (key, members, days) in enumerate(cands, 1):   # i is the position in the full report, whatever the filters
         if len(days) < min_days or days[-1] < since:
             continue
         shown += 1
