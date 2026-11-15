@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+- Candidates have ids. `report` prints one beside each candidate, and `mark`
+  and `draft` take it. A report position can shift when a new entry arrives
+  between report and mark; an id cannot. `mark` prints the lesson it marked and
+  exits 1 for a reference that matches nothing.
+- Every date is UTC: entries, promotions, reports, and health. Logs written
+  earlier keep the local dates they have.
+- Credential-shaped text in an entry is replaced with `[redacted]` before it is
+  written.
+- `report`, `mark`, `draft`, and `health` use this repository's log when no log
+  is named.
+- `instructions` prints the block that tells the agent how to mark lessons, and
+  `install` points at it.
+
 ## 0.2.0
 
 - `install <host>` and `uninstall` register and remove the stop hook in the

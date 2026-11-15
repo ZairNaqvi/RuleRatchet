@@ -37,7 +37,7 @@ ends up pasted into a rules file or a pull request.
 
 ```
 pipx install git+https://github.com/ZairNaqvi/RuleRatchet            # latest
-pipx install git+https://github.com/ZairNaqvi/RuleRatchet@v0.2.0     # a pinned release
+pipx install git+https://github.com/ZairNaqvi/RuleRatchet@v0.3.0     # a pinned release
 ```
 
 or run `python3 ruleratchet.py` from a checkout. Python 3.11 or later.
