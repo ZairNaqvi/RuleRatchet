@@ -41,7 +41,7 @@ under any filter, so `mark` needs no flags.
 """
 import collections, datetime, hashlib, json, os, pathlib, re, shlex, shutil, subprocess, sys
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 STOP = set("a an and are as at be by for from in into is it its of on or that the this to use when with you your not do does if then always never first before after must should".split())
 COMMANDS = {"bash", "git", "gh", "npm", "npx", "node", "python3", "python", "make", "cargo", "go", "pnpm", "yarn", "deno", "docker", "curl"}
@@ -498,8 +498,8 @@ def cmd_status():
             fixes.append(f"ruleratchet uninstall {host} && ruleratchet install {host}")
     if not registered and not fixes:
         fixes.append("ruleratchet install claude   (or: ruleratchet install codex)")
-    told = [f for f in ("AGENTS.md", "CLAUDE.md") if (root / f).is_file() and "[LEARN]" in (root / f).read_text(encoding="utf-8", errors="replace")]
-    print("instructions: " + ("found in " + ", ".join(told) if told else "not found in AGENTS.md or CLAUDE.md"))
+    told = [f for f in ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md") if (root / f).is_file() and "[LEARN]" in (root / f).read_text(encoding="utf-8", errors="replace")]
+    print("instructions: " + ("found in " + ", ".join(told) if told else "not found in AGENTS.md, CLAUDE.md, or CLAUDE.local.md"))
     if not told:
         fixes.append("ruleratchet instructions >> AGENTS.md")
     rows = read_log(log)

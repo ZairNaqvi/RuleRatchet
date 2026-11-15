@@ -385,6 +385,15 @@ class TestHooks(unittest.TestCase):
         self.assertIn("working.", out)
         self.assertEqual(self.status, 0)
 
+    def test_status_accepts_instructions_in_the_personal_file(self):
+        repo = self.new_repo("s3")
+        with redirect_stdout(io.StringIO()):
+            rr.cmd_install("claude", repo)
+        (repo / "CLAUDE.local.md").write_text(rr.INSTRUCTIONS)
+        out = self.status_in(repo)
+        self.assertIn("instructions: found in CLAUDE.local.md", out)
+        self.assertEqual(self.status, 0)
+
     def test_status_flags_a_hook_whose_command_is_gone_or_a_broken_file(self):
         repo = self.new_repo("s2")
         (repo / ".codex").mkdir()
