@@ -103,8 +103,10 @@ After they merge:
 - `chore-release-0.3`: version 0.3.0 and its changelog section, then the tag.
   The changelog is written in that one PR so the five above do not all edit
   the same lines.
-- `docs-public` (PR 8 of the first table, still open): stranger read-through,
-  public flip, branch protection. Needs the owner's decision, not a branch.
+- `docs-public`: the stranger read-through and the documentation a stranger
+  needs (README, `docs/GUIDE.md`, `docs/DESIGN.md`, `docs/LOG-FORMAT.md`). The
+  public flip and branch protection that follow are the owner's decision, not
+  a branch.
 
 Still not planned: a model call, a daemon or database, applying a rule
 automatically, and a recording of the second host until a session of it can
