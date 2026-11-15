@@ -90,6 +90,6 @@ ruleratchet report <log> --since 2026-11-01 --min-days 3 --out weekly.md
 
 `--since` shows only candidates seen on or after the date, with their full
 history. `--min-days` shows only candidates seen on that many days. `--out`
-writes the report to a file. A candidate keeps its number from the full report
-under any filter, so `ruleratchet mark <log> <n>` needs no flags. A weekly
+writes the report to a file. A candidate keeps its id and its number
+under any filter, so `ruleratchet mark <id>` needs no flags. A weekly
 cron line is `ruleratchet report <log> --since <last week> --out <file>`.
